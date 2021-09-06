@@ -388,6 +388,7 @@ class AzureBlobFileSystem(AsyncFileSystem):
             for k in ["use_listings_cache", "listings_expiry_time", "max_paths"]
             if k in kwargs
         }  # pass on to fsspec superclass
+        loop = loop or get_loop()
         super().__init__(
             asynchronous=asynchronous, loop=loop, **super_kwargs
         )
@@ -1721,18 +1722,11 @@ class AzureBlobFile(AbstractBufferedFile):
         self.blob = blob
         self.block_size = block_size
 
-        try:
-            # Need to confirm there is an event loop running in
-            # the thread. If not, create the fsspec loop
-            # and set it.  This is to handle issues with
-            # Async Credentials from the Azure SDK
-            loop = get_running_loop()
+        loop = get_loop()
+        # Todo: Should loop be set here?
+        asyncio.set_event_loop(loop)
 
-        except RuntimeError:
-            loop = get_loop()
-            asyncio.set_event_loop(loop)
-
-        self.loop = self.fs.loop or get_loop()
+        self.loop = self.fs.loop or loop
         self.container_client = (
             fs.service_client.get_container_client(self.container_name)
             or self.connect_client()
@@ -1807,6 +1801,7 @@ class AzureBlobFile(AbstractBufferedFile):
                         account_url=self.fs.account_url,
                         credential=cred,
                         _location_mode=self.fs.location_mode,
+                        loop=self.loop
                     ).get_container_client(self.container_name)
                     for cred in creds
                     if cred is not None
