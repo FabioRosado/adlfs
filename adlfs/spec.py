@@ -4,44 +4,32 @@
 from __future__ import absolute_import, division, print_function
 
 import asyncio
-from glob import has_magic
 import io
 import logging
 import os
 import warnings
 import weakref
+from datetime import datetime, timedelta
+from glob import has_magic
 
-from azure.core.exceptions import (
-    ClientAuthenticationError,
-    HttpResponseError,
-    ResourceNotFoundError,
-    ResourceExistsError,
-)
-from azure.storage.blob._shared.base_client import create_configuration
+from azure.core.exceptions import (ClientAuthenticationError,
+                                   HttpResponseError, ResourceExistsError,
+                                   ResourceNotFoundError)
 from azure.datalake.store import AzureDLFileSystem, lib
 from azure.datalake.store.core import AzureDLFile, AzureDLPath
-from azure.storage.blob.aio import BlobServiceClient as AIOBlobServiceClient
-from azure.storage.blob import generate_blob_sas, BlobSasPermissions
-from azure.storage.blob.aio._list_blobs_helper import BlobPrefix
+from azure.storage.blob import BlobSasPermissions, generate_blob_sas
 from azure.storage.blob._models import BlobBlock, BlobProperties, BlobType
+from azure.storage.blob._shared.base_client import create_configuration
+from azure.storage.blob.aio import BlobServiceClient as AIOBlobServiceClient
+from azure.storage.blob.aio._list_blobs_helper import BlobPrefix
 from fsspec import AbstractFileSystem
-from fsspec.asyn import (
-    sync,
-    AsyncFileSystem,
-    get_loop,
-    sync_wrapper,
-    get_running_loop,
-)
+from fsspec.asyn import (AsyncFileSystem, get_loop, get_running_loop, sync,
+                         sync_wrapper)
 from fsspec.spec import AbstractBufferedFile
 from fsspec.utils import infer_storage_options, tokenize
-from .utils import (
-    filter_blobs,
-    get_blob_metadata,
-    close_service_client,
-    close_container_client,
-)
 
-from datetime import datetime, timedelta
+from .utils import (close_container_client, close_service_client, filter_blobs,
+                    get_blob_metadata)
 
 logger = logging.getLogger(__name__)
 
@@ -401,7 +389,7 @@ class AzureBlobFileSystem(AsyncFileSystem):
             if k in kwargs
         }  # pass on to fsspec superclass
         super().__init__(
-            asynchronous=asynchronous, loop=loop or get_loop(), **super_kwargs
+            asynchronous=asynchronous, loop=loop, **super_kwargs
         )
 
         self.account_name = account_name or os.getenv("AZURE_STORAGE_ACCOUNT_NAME")
@@ -482,9 +470,8 @@ class AzureBlobFileSystem(AsyncFileSystem):
         Tuple of (Async Credential, Sync Credential).
         """
         from azure.identity import ClientSecretCredential
-        from azure.identity.aio import (
-            ClientSecretCredential as AIOClientSecretCredential,
-        )
+        from azure.identity.aio import \
+            ClientSecretCredential as AIOClientSecretCredential
 
         async_credential = AIOClientSecretCredential(
             tenant_id=self.tenant_id,
@@ -502,9 +489,8 @@ class AzureBlobFileSystem(AsyncFileSystem):
 
     def _get_default_azure_credential(self, **kwargs):
         try:
-            from azure.identity.aio import (
-                DefaultAzureCredential as AIODefaultAzureCredential,
-            )
+            from azure.identity.aio import \
+                DefaultAzureCredential as AIODefaultAzureCredential
 
             asyncio.get_child_watcher().attach_loop(self.loop)
             self.credential = AIODefaultAzureCredential()
